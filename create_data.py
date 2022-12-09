@@ -83,6 +83,7 @@ def main(args: argparse.Namespace):
             }
 
             json.dump(example, jsn)
+            jsn.write("\n") # when one long line hugface breaks
 
             count += 1
             if count > args.generate_size:
