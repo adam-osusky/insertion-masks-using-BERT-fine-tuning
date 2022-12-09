@@ -34,7 +34,7 @@ def get_word_vocab(dataset, max_words):
 
 
 def main(args: argparse.Namespace):
-    dataset = load_dataset("wikitext", "wikitext-103-v1", split="test") #train
+    dataset = load_dataset("wikitext", "wikitext-103-v1", split="test")  # train
     vocab = get_word_vocab(dataset, args.max_vocab)
     vocab_size = len(vocab)  # [0, vocab_size)
     print("Vocabulary size: ", vocab_size)
@@ -83,7 +83,7 @@ def main(args: argparse.Namespace):
             }
 
             json.dump(example, jsn)
-            jsn.write("\n") # when one long line hugface breaks
+            jsn.write("\n")  # when one long line hugface breaks
 
             count += 1
             if count > args.generate_size:

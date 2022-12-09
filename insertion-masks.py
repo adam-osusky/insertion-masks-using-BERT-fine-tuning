@@ -4,22 +4,31 @@ import sys
 
 #imports
 from datasets import load_dataset
-from pytorch-transformers import AutoTokenizer
+# from pytorch-transformers import AutoTokenizer
+import transformers
 from transformers import DataCollatorForTokenClassification
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
+from transformers import AutoTokenizer
+import transformers
+import evaluate
+import numpy as np
+
+seqeval = evaluate.load("seqeval")
+tokenizer = AutoTokenizer.from_pretrained(arg.model)
 
 parser = argparse.ArgumentParser()
-
 parser.add_argument("--target-prob", default="")
 parser.add_argument("--insert-prob", default="")
 parser.add_argument("--seed", default=69, type=int, help="Random seed")
+parser.add_argument("--dataset_name", default="inserted_words_dataset.jsonl", help="name")
+parser.add_argument("--model", default="distilbert-base-uncased")
 
 
 def tokenize_and_align_labels(examples):
-    tokenized_inputs = tokenizer(examples["tokens"], truncation=True, is_split_into_words=True)
+    tokenized_inputs = tokenizer(examples["words"], truncation=True, is_split_into_words=True)
 
     labels = []
-    for i, label in enumerate(examples[f"ner_tags"]):
+    for i, label in enumerate(examples["target"]):
         word_ids = tokenized_inputs.word_ids(batch_index=i)  # Map tokens to their respective word.
         previous_word_idx = None
         label_ids = []
@@ -37,22 +46,76 @@ def tokenize_and_align_labels(examples):
     return tokenized_inputs
 
 
-def create_dataset():
-    dataset = load_dataset("wikitext", "wikitext-103-v1", split="test")
-    dataset
-    
-    return 0
+def compute_metrics(p):
+    predictions, labels = p
+    predictions = np.argmax(predictions, axis=2)
+
+    true_predictions = [
+        [label_list[p] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+    true_labels = [
+        [label_list[l] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+
+    results = seqeval.compute(predictions=true_predictions, references=true_labels)
+    return {
+        "precision": results["overall_precision"],
+        "recall": results["overall_recall"],
+        "f1": results["overall_f1"],
+        "accuracy": results["overall_accuracy"],
+    }
 
 
-def train_model():
-    return 0
+id2label = {
+    0: "not inserted",
+    1: "inserted"
+}
+label2id = {
+    "not inserted": 0,
+    "inserted": 1
+}
 
 
 def main(args: argparse.Namespace):
-    
-    # dataset = load_dataset('wikitext', 'wikitext-103-v1', split='all')
-    # dataset = dataset[]
+    access_token = "kkt"
 
+    dataset = load_dataset("wikitext", "wikitext-103-v1", split="train")
+    # tokenizer = AutoTokenizer.from_pretrained(arg.model)
+    tokenized_data = dataset.map(tokenize_and_align_labels, batched=True)
+    data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
+    model = AutoModelForTokenClassification.from_pretrained(
+        args.model, num_labels=2, id2label=id2label, label2id=label2id
+    )
+
+    training_args = TrainingArguments(
+        output_dir="testrun_model",
+        learning_rate=2e-5,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        num_train_epochs=1,
+        weight_decay=0.01,
+        evaluation_strategy="steps",
+        save_strategy="steps",
+        load_best_model_at_end=True,
+        push_to_hub=True,
+        hub_token=access_token
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=tokenized_data,
+        eval_dataset=tokenized_data,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics,
+    )
+
+    trainer.train()
+    # trainer.push_to_hub()
+
     return 0
 
 
