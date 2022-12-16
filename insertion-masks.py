@@ -15,10 +15,11 @@ import numpy as np
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--target-prob", default="")
-parser.add_argument("--insert-prob", default="")
+parser.add_argument("--target_prob", default="")
+parser.add_argument("--insert_prob", default="")
 parser.add_argument("--seed", default=69, type=int, help="Random seed")
-parser.add_argument("--dataset_name", default="inserted_words_dataset.jsonl", help="name")
+parser.add_argument("--train_dataset_name", default="train-inserted_words_dataset.jsonl", help="name")
+parser.add_argument("--eval_dataset_name", default="validation-inserted_words_dataset.jsonl", help="name")
 parser.add_argument("--model", default="distilbert-base-uncased")
 
 seqeval = evaluate.load("seqeval")
@@ -82,10 +83,14 @@ def main(args: argparse.Namespace):
         tokenized_inputs["labels"] = labels
         return tokenized_inputs
 
-    dataset = load_dataset("json", data_files=args.dataset_name, split="train")
-    print(dataset)
-    # tokenizer = AutoTokenizer.from_pretrained(arg.model)
-    tokenized_data = dataset.map(tokenize_and_align_labels, batched=True)
+    train_dataset = load_dataset("json", data_files=args.train_dataset_name, split="train")
+    print(train_dataset)
+    train_tokenized_data = train_dataset.map(tokenize_and_align_labels, batched=True)
+
+    eval_dataset = load_dataset("json", data_files=args.eval_dataset_name, split="train")
+    print(eval_dataset)
+    eval_tokenized_data = eval_dataset.map(tokenize_and_align_labels, batched=True)
+
     data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
     model = AutoModelForTokenClassification.from_pretrained(
         args.model, num_labels=2, id2label=id2label, label2id=label2id
@@ -108,8 +113,8 @@ def main(args: argparse.Namespace):
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=tokenized_data,
-        eval_dataset=tokenized_data,
+        train_dataset=train_tokenized_data,
+        eval_dataset=eval_tokenized_data,
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
