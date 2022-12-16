@@ -34,64 +34,65 @@ def get_word_vocab(dataset, max_words):
 
 
 def main(args: argparse.Namespace):
-    dataset = load_dataset("wikitext", "wikitext-103-v1", split="test")  # train
+    dataset = load_dataset("wikitext", "wikitext-103-v1", split="all")  # train
     vocab = get_word_vocab(dataset, args.max_vocab)
     vocab_size = len(vocab)  # [0, vocab_size)
     print("Vocabulary size: ", vocab_size)
 
-    dataset = load_dataset("wikitext", "wikitext-103-v1", split=args.split)
-    print(dataset)
+    for splt in ["train", "validation", "test"]:
+        dataset = load_dataset("wikitext", "wikitext-103-v1", split=splt)
+        print(dataset)
 
-    print("Generating data")
-    count = 0
-    with open(args.dataset_name, "w") as jsn:
-        for instance in tqdm(dataset):
-            words = instance["text"].split()
-            num_words = len(words)
-            num_to_insert = int(num_words * args.insert_proportion)
+        print("Generating data for", splt, "split")
+        count = 0
+        with open(splt+"-"+args.dataset_name, "w") as jsn:
+            for instance in tqdm(dataset):
+                words = instance["text"].split()
+                num_words = len(words)
+                num_to_insert = int(num_words * args.insert_proportion)
 
-            insert_idxs = random.choices(range(num_words), k=num_to_insert)
-            insertions = {}
-            for i in insert_idxs:
-                insertions[i] = vocab[random.randint(0, vocab_size - 1)]
+                insert_idxs = random.choices(range(num_words), k=num_to_insert)
+                insertions = {}
+                for i in insert_idxs:
+                    insertions[i] = vocab[random.randint(0, vocab_size - 1)]
 
-            targets = [0] * (num_words + num_to_insert)
+                targets = [0] * (num_words + num_to_insert)
 
-            inserted = 0
-            new_words = []
-            for i, w in enumerate(words):
-                new_words.append(w)
-                if i in insertions:
-                    new_words.append(insertions[i])
-                    targets[i + inserted + 1] = 1
-                    inserted += 1
-            # print("total words: ", num_words, "To insert: ", num_to_insert)
-            # print("insert_idxs :", insert_idxs)
-            # print(insertions)
-            # print("targets len:", len(targets))
-            # print(targets)
-            # for i, w in zip(new_words, targets):
-            #     print(i, w)
-            # print("--------")
+                inserted = 0
+                new_words = []
+                for i, w in enumerate(words):
+                    new_words.append(w)
+                    if i in insertions:
+                        new_words.append(insertions[i])
+                        targets[i + inserted + 1] = 1
+                        inserted += 1
+                # print("total words: ", num_words, "To insert: ", num_to_insert)
+                # print("insert_idxs :", insert_idxs)
+                # print(insertions)
+                # print("targets len:", len(targets))
+                # print(targets)
+                # for i, w in zip(new_words, targets):
+                #     print(i, w)
+                # print("--------")
 
-            if len(new_words) == 0:
-                continue
+                if len(new_words) == 0:
+                    continue
 
-            example = {
-                "words": new_words,
-                "target": targets
-            }
+                example = {
+                    "words": new_words,
+                    "target": targets
+                }
 
-            json.dump(example, jsn)
-            jsn.write("\n")  # when one long line hugface breaks
+                json.dump(example, jsn)
+                jsn.write("\n")  # when one long line hugface breaks
 
-            count += 1
-            if count > args.generate_size:
-                break
+                count += 1
+                if count > args.generate_size:
+                    break
 
-    print("creating hugface object")
-    generated_dataset = load_dataset("json", data_files=args.dataset_name, split="train")
-    print(generated_dataset)
+        print("creating hugface object")
+        generated_dataset = load_dataset("json", data_files=args.dataset_name, split="train")
+        print(generated_dataset)
 
     return 0
 
