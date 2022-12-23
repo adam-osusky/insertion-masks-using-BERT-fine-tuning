@@ -93,6 +93,7 @@ def main(args: argparse.Namespace):
         print("creating hugface object")
         generated_dataset = load_dataset("json", data_files=args.dataset_name, split="train")
         print(generated_dataset)
+        print("--------------------data creation done-------------------------")
 
     return 0
 

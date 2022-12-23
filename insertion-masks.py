@@ -121,6 +121,7 @@ def main(args: argparse.Namespace):
     )
 
     trainer.train()
+    trainer.save_model("./my_model")
     # trainer.push_to_hub()
 
     return 0
@@ -129,4 +130,3 @@ def main(args: argparse.Namespace):
 if __name__ == "__main__":
     args = parser.parse_args([] if "__file__" not in globals() else None)
     x = main(args)
-    print(x)
