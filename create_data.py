@@ -8,33 +8,33 @@ import json
 # imports
 from datasets import load_dataset
 import pandas as pd
+import numpy as np
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--insert_proportion", default=0.15)
+parser.add_argument("--insert_proportion", default=0.5)
 parser.add_argument("--seed", default=69, type=int, help="Random seed")
-parser.add_argument("--output_path", default="./data.txt", help="Where to save generated data.")
 parser.add_argument("--max_vocab", default=1_000_000, type=int, help="The number of possible words to insert.")
-parser.add_argument("--split", default="train", help="Which split from wiki.")
-parser.add_argument("--generate_size", default=1_000_000, type=int, help="Size of the generated dataset.")
+parser.add_argument("--generate_size", default=1_000, type=int, help="Number of paragraphs for the generated dataset.")
 parser.add_argument("--dataset_name", default="inserted_words_dataset.jsonl", help="name")
 
 
 def get_word_vocab(dataset, max_words):
-    dictionary = {}
+    dictionary = set()
     i = 0
     for instance in dataset:
         words = instance["text"].split()
         for w in words:
+            w = w.lower()
             if w not in dictionary:
-                dictionary[i] = w
+                dictionary.add(w)
                 i += 1
                 if i > max_words:
-                    break
-    return dictionary
+                    return list(dictionary)
 
 
 def main(args: argparse.Namespace):
-    dataset = load_dataset("wikitext", "wikitext-103-v1", split="all")  # train
+    np.random.seed(args.seed)
+    dataset = load_dataset("wikitext", "wikitext-103-v1", split="all")
     vocab = get_word_vocab(dataset, args.max_vocab)
     vocab_size = len(vocab)  # [0, vocab_size)
     print("Vocabulary size: ", vocab_size)
@@ -51,7 +51,7 @@ def main(args: argparse.Namespace):
                 num_words = len(words)
                 num_to_insert = int(num_words * args.insert_proportion)
 
-                insert_idxs = random.choices(range(num_words), k=num_to_insert)
+                insert_idxs = np.random.choice(range(num_words), num_to_insert, replace=False)
                 insertions = {}
                 for i in insert_idxs:
                     insertions[i] = vocab[random.randint(0, vocab_size - 1)]
@@ -66,14 +66,6 @@ def main(args: argparse.Namespace):
                         new_words.append(insertions[i])
                         targets[i + inserted + 1] = 1
                         inserted += 1
-                # print("total words: ", num_words, "To insert: ", num_to_insert)
-                # print("insert_idxs :", insert_idxs)
-                # print(insertions)
-                # print("targets len:", len(targets))
-                # print(targets)
-                # for i, w in zip(new_words, targets):
-                #     print(i, w)
-                # print("--------")
 
                 if len(new_words) == 0:
                     continue
@@ -93,7 +85,7 @@ def main(args: argparse.Namespace):
         print("creating hugface object")
         generated_dataset = load_dataset("json", data_files=args.dataset_name, split="train")
         print(generated_dataset)
-        print("--------------------data creation done-------------------------")
+        print("---------------------------------------------")
 
     return 0
 

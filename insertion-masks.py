@@ -4,7 +4,6 @@ import sys
 
 #imports
 from datasets import load_dataset
-# from pytorch-transformers import AutoTokenizer
 import transformers
 from transformers import DataCollatorForTokenClassification
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
@@ -15,8 +14,6 @@ import numpy as np
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--target_prob", default="")
-parser.add_argument("--insert_prob", default="")
 parser.add_argument("--seed", default=69, type=int, help="Random seed")
 parser.add_argument("--train_dataset_name", default="train-inserted_words_dataset.jsonl", help="name")
 parser.add_argument("--eval_dataset_name", default="validation-inserted_words_dataset.jsonl", help="name")
@@ -26,6 +23,7 @@ seqeval = evaluate.load("seqeval")
 
 
 def compute_metrics(p):
+    label_list = ["not inserted", "inserted"]
     predictions, labels = p
     predictions = np.argmax(predictions, axis=2)
 
@@ -58,6 +56,7 @@ label2id = {
 
 
 def main(args: argparse.Namespace):
+    np.random.seed(args.seed)
     access_token = "kkt"
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
